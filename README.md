@@ -1,2 +1,0 @@
-# XProtect-Prepare
-
