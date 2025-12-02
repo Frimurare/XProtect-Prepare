@@ -1,6 +1,7 @@
 <# 
    Enhanced Script for Milestone XProtect System Configuration
    By Ulf Holmstrom, Happy Problem Solver at Manvarg AB (Rev 1.9, 2025)
+   Authored by Ulf Holmström, ex employee, Solution Engineer at Milestone Systems December 2025
    For questions contact: ulf@manvarg.se
 
    IMPORTANT DISCLAIMER:
