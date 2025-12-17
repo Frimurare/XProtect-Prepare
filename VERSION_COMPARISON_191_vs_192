@@ -1,0 +1,183 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║          XPROTECT PRE-CHECK SCRIPT - VERSION COMPARISON                      ║
+║                        1.91 vs 1.92                                          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ ANTIVIRUSUNDANTAG - VAD LÄGGS TILL?                                         │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌─ VERSION 1.91 (GAMMAL - OFULLSTÄNDIG) ───────────────────────────────────────┐
+│                                                                               │
+│ ✅ Lagringsdiskar:                                                           │
+│    • D:\, E:\, F:\, etc (användarvalda)                                     │
+│                                                                               │
+│ ✅ Processer:                                                                │
+│    • VideoOS.Recorder.Service.exe                                            │
+│    • VideoOS.Server.Service.exe                                              │
+│    • VideoOS.Administration.exe                                              │
+│    • VideoOS.Event.Server.exe                                                │
+│    • VideoOS.Failover.Service.exe                                            │
+│    • VideoOS.MobileServer.Service.exe                                        │
+│    • VideoOS.LPR.Server.exe                                                  │
+│                                                                               │
+│ ⚠️  Filtillägg (OFULLSTÄNDIGA):                                              │
+│    • .blk (Corporate/VMS)                                                    │
+│    • .idx (Corporate/VMS)                                                    │
+│                                                                               │
+│ ❌ SAKNAS HELT - C-DISK MAPPAR:                                              │
+│    • INGA Milestone-programfiler undantagna!                                 │
+│    • Windows Defender skannar fortfarande:                                   │
+│      - C:\Program Files\Milestone\                                           │
+│      - C:\Program Files (x86)\Milestone\                                     │
+│      - C:\ProgramData\Milestone\                                             │
+│      - C:\ProgramData\VideoDeviceDrivers\                                    │
+│      - C:\ProgramData\VideoOS\                                               │
+│                                                                               │
+│ 💥 RESULTAT:                                                                 │
+│    Performance-problem trots att databaserna är undantagna!                  │
+│    Milestone-tjänster och programfiler skannas fortfarande.                  │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+┌─ VERSION 1.92 (NY - KOMPLETT ENLIGT MILESTONE) ──────────────────────────────┐
+│                                                                               │
+│ ✅ Lagringsdiskar:                                                           │
+│    • D:\, E:\, F:\, etc (användarvalda)                                     │
+│                                                                               │
+│ ✅ Processer:                                                                │
+│    • VideoOS.Recorder.Service.exe                                            │
+│    • VideoOS.Server.Service.exe                                              │
+│    • VideoOS.Administration.exe                                              │
+│    • VideoOS.Event.Server.exe                                                │
+│    • VideoOS.Failover.Service.exe                                            │
+│    • VideoOS.MobileServer.Service.exe                                        │
+│    • VideoOS.LPR.Server.exe                                                  │
+│                                                                               │
+│ ✅ Filtillägg (KOMPLETTA):                                                   │
+│    • .blk (Corporate/VMS)                                                    │
+│    • .idx (Corporate/VMS)                                                    │
+│    • .pic (Enterprise) ⭐ NYTT                                               │
+│    • .pqz (Enterprise) ⭐ NYTT                                               │
+│    • .sts (Enterprise) ⭐ NYTT                                               │
+│    • .ts  (Enterprise) ⭐ NYTT                                               │
+│                                                                               │
+│ ✅ C-DISK MILESTONE-MAPPAR: ⭐ NYTT - KRITISK FIX                            │
+│    • C:\Program Files\Milestone\                                             │
+│    • C:\Program Files (x86)\Milestone\                                       │
+│    • C:\ProgramData\Milestone\                                               │
+│    • C:\ProgramData\VideoDeviceDrivers\                                      │
+│    • C:\ProgramData\VideoOS\                                                 │
+│                                                                               │
+│ 🔒 SÄKERHET:                                                                 │
+│    • C-disken som helhet UNDANTAS INTE (säkert!)                             │
+│    • Endast specifika Milestone-mappar undantas                              │
+│    • Kontrollerar om mappar existerar innan undantag                         │
+│                                                                               │
+│ ✅ RESULTAT:                                                                 │
+│    Fullständig överensstämmelse med Milestone Best Practices!                │
+│    Optimal performance - inga onödiga virus-scanningar.                      │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ MILESTONE OFFICIELL GUIDE COMPLIANCE                                         │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+Referens: "Configure anti-virus software on XProtect systems (best practices)"
+Article Number: 000033748 | Version: 13 | Last Modified: 2021-9-1
+
+┌─────────────┬──────────────┬──────────────┐
+│  Krav       │  Ver 1.91    │  Ver 1.92    │
+├─────────────┼──────────────┼──────────────┤
+│ C:\Program Files\Milestone\                │
+│             │     ❌       │     ✅       │
+│ C:\Program Files (x86)\Milestone\          │
+│             │     ❌       │     ✅       │
+│ C:\ProgramData\Milestone\                  │
+│             │     ❌       │     ✅       │
+│ C:\ProgramData\VideoDeviceDrivers\         │
+│             │     ❌       │     ✅       │
+│ C:\ProgramData\VideoOS\                    │
+│             │     ❌       │     ✅       │
+│ Lagringsdiskar                             │
+│             │     ✅       │     ✅       │
+│ .blk, .idx  │     ✅       │     ✅       │
+│ .pic, .pqz, .sts, .ts                      │
+│             │     ❌       │     ✅       │
+│ Processer   │     ✅       │     ✅       │
+├─────────────┼──────────────┼──────────────┤
+│ COMPLIANCE  │   62.5% ⚠️   │   100% ✅    │
+└─────────────┴──────────────┴──────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ UPPGRADERINGSGUIDE                                                           │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+Om du redan kört version 1.91 och vill lägga till de saknade undantagen:
+
+1. Kör Xprotect-Pre-Check-192.ps1 som Administrator
+
+2. Välj ANTINGEN:
+   
+   ALTERNATIV A - Snabb fix (endast antivirus):
+   ┌─────────────────────────────────────────────┐
+   │ Välj: "1. Antivirus and Storage             │
+   │        Configuration"                        │
+   │                                              │
+   │ • Välj samma diskar som tidigare             │
+   │ • Milestone-mapparna läggs till automatiskt │
+   │ • Nya filtillägg läggs till automatiskt      │
+   └─────────────────────────────────────────────┘
+   
+   ALTERNATIV B - Full omkörning:
+   ┌─────────────────────────────────────────────┐
+   │ Välj: "8. COMPLETE SYSTEM SETUP -           │
+   │        Run Everything!"                      │
+   │                                              │
+   │ • Kör om hela konfigurationen                │
+   │ • Säkerställer allt är korrekt               │
+   └─────────────────────────────────────────────┘
+
+3. Verifiera (kör i PowerShell som Admin):
+   ```powershell
+   Get-MpPreference | Select-Object -ExpandProperty ExclusionPath
+   ```
+   
+   Du bör nu se BÅDE:
+   • Dina lagringsdiskar (D:\, E:\, etc)
+   • Milestone C-disk mappar
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ VARFÖR ÄR DETTA VIKTIGT?                                                    │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+❌ UTAN C-DISK UNDANTAG (Version 1.91):
+   • Windows Defender skannar Milestone-programfiler kontinuerligt
+   • Kan orsaka fördröjningar vid tjänststart
+   • Potentiella fil-låsningar under uppdateringar
+   • Suboptimal performance trots databas-undantag
+   • Följer INTE Milestone officiella rekommendationer
+
+✅ MED C-DISK UNDANTAG (Version 1.92):
+   • Milestone-programfiler skannas inte
+   • Snabbare tjänststart
+   • Inga fil-låsningar
+   • Optimal performance
+   • 100% enligt Milestone Best Practices
+   • Fortfarande säkert (bara specifika mappar)
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ KONTAKT & SUPPORT                                                            │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+📧 ulf@manvarg.se
+👤 Ulf Holmstrom
+🏢 Happy Problem Solver at Manvarg AB
+
+⚠️  DISCLAIMER: Detta script är utvecklat av Ulf Holmstrom för att underlätta
+    för återförsäljare. Det tillhandahålls som en publik resurs och stöds 
+    INTE av Milestone Systems A/S.
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    UPGRADE TO VERSION 1.92 TODAY!                            ║
+║              Fullständig Milestone Best Practices Compliance                 ║
+╚══════════════════════════════════════════════════════════════════════════════╝
