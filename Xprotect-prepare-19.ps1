@@ -1,11 +1,22 @@
 <# 
    Enhanced Script for Milestone XProtect System Configuration
-   By Ulf Holmstrom, Happy Problem Solver at Manvarg AB (Rev 1.9, 2025)
+   By Ulf Holmstrom, Happy Problem Solver at Manvarg AB (Rev 1.92, 2025)
    For questions contact: ulf@manvarg.se
 
    IMPORTANT DISCLAIMER:
    This script has been developed by Ulf Holmstrom, Happy Problem Solver at Manvarg AB, to facilitate resellers.
    It is provided as a public resource and is NOT supported by Milestone Systems.
+   
+   CHANGELOG Rev 1.92:
+   - CRITICAL FIX: Added Milestone installation folder exceptions on C: drive
+   - ADDED: C:\Program Files\Milestone\ antivirus exception
+   - ADDED: C:\Program Files (x86)\Milestone\ antivirus exception
+   - ADDED: C:\ProgramData\Milestone\ antivirus exception
+   - ADDED: C:\ProgramData\VideoDeviceDrivers\ antivirus exception
+   - ADDED: C:\ProgramData\VideoOS\ antivirus exception
+   - ADDED: Missing file extensions (.pic, .pqz, .sts, .ts) for XProtect Enterprise
+   - IMPROVED: Now follows Milestone's official best practices completely
+   - SECURITY: C: drive bulk exclusion still blocked - only specific Milestone folders
    
    CHANGELOG Rev 1.9:
    - ADDED: NTP Time Server configuration for camera time synchronization
@@ -601,7 +612,7 @@ function Enable-SNMP {
     }
 }
 
-# Function: Configure NTP Server for Cameras
+# Function: Configure NTP Server for Cameras (ENHANCED with seconds display)
 function Enable-NTPServer {
     try {
         Write-Host "`n=== CONFIGURING NTP TIME SERVER FOR CAMERAS ===" -ForegroundColor Yellow
@@ -648,6 +659,36 @@ function Enable-NTPServer {
             Write-Host " - Warning: Firewall rule creation returned code $LASTEXITCODE" -ForegroundColor Yellow
         }
         
+        # ADDED: Enable seconds display in Windows taskbar clock
+        Write-Host " - Enabling seconds display in taskbar clock..." -ForegroundColor Cyan
+        $registryPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+        try {
+            # Check if registry path exists, create if not
+            if (-not (Test-Path $registryPath)) {
+                New-Item -Path $registryPath -Force | Out-Null
+            }
+            
+            # Enable seconds in taskbar clock (1 = show seconds, 0 = hide seconds)
+            Set-ItemProperty -Path $registryPath -Name "ShowSecondsInSystemClock" -Value 1 -Type DWord -ErrorAction Stop
+            Write-Host " - Seconds display enabled in taskbar clock" -ForegroundColor Green
+            Write-Host " - NOTE: Explorer must be restarted for clock change to take effect" -ForegroundColor Yellow
+            
+            # Ask user if they want to restart Explorer now
+            $restartExplorer = Read-Host " - Restart Windows Explorer now to show seconds? (Y/N)"
+            if ($restartExplorer -match "^[Yy]") {
+                Write-Host " - Restarting Windows Explorer..." -ForegroundColor Cyan
+                Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
+                Start-Sleep -Seconds 2
+                Start-Process explorer
+                Write-Host " - Windows Explorer restarted - seconds should now be visible!" -ForegroundColor Green
+            } else {
+                Write-Host " - Seconds will be visible after next Explorer restart or system reboot" -ForegroundColor Yellow
+            }
+        }
+        catch {
+            Write-Host " - Warning: Could not enable seconds display: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+        
         # Start the Windows Time service
         Write-Host " - Starting Windows Time service..." -ForegroundColor Cyan
         Start-Service w32time -ErrorAction Stop
@@ -677,6 +718,7 @@ function Enable-NTPServer {
         Write-Host "Time Source: Swedish NTP Pool (se.pool.ntp.org)" -ForegroundColor Green
         Write-Host "Firewall: UDP Port 123 opened for incoming connections" -ForegroundColor Green
         Write-Host "Server Mode: Reliable NTP server for camera synchronization" -ForegroundColor Green
+        Write-Host "Taskbar Clock: Seconds display ENABLED" -ForegroundColor Green
         Write-Host ""
         Write-Host "Your cameras can now sync time from this server!" -ForegroundColor Green
         Write-Host "Configure your cameras to use this server's IP address as NTP server." -ForegroundColor Cyan
@@ -695,6 +737,47 @@ function Enable-NTPServer {
         return $false
     }
 }
+
+# BONUS: Standalone function to just enable/disable seconds in taskbar
+function Set-TaskbarSecondsDisplay {
+    param(
+        [Parameter(Mandatory=$true)]
+        [bool]$ShowSeconds
+    )
+    
+    try {
+        $registryPath = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced"
+        
+        if (-not (Test-Path $registryPath)) {
+            New-Item -Path $registryPath -Force | Out-Null
+        }
+        
+        $value = if ($ShowSeconds) { 1 } else { 0 }
+        Set-ItemProperty -Path $registryPath -Name "ShowSecondsInSystemClock" -Value $value -Type DWord -ErrorAction Stop
+        
+        $status = if ($ShowSeconds) { "ENABLED" } else { "DISABLED" }
+        Write-Host "Taskbar seconds display: $status" -ForegroundColor Green
+        Write-Host "Restart Windows Explorer or reboot for changes to take effect." -ForegroundColor Yellow
+        
+        $restart = Read-Host "Restart Windows Explorer now? (Y/N)"
+        if ($restart -match "^[Yy]") {
+            Stop-Process -Name explorer -Force
+            Start-Sleep -Seconds 2
+            Start-Process explorer
+            Write-Host "Windows Explorer restarted!" -ForegroundColor Green
+        }
+        
+        return $true
+    }
+    catch {
+        Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+        return $false
+    }
+}
+
+# USAGE EXAMPLES:
+# To enable seconds:  Set-TaskbarSecondsDisplay -ShowSeconds $true
+# To disable seconds: Set-TaskbarSecondsDisplay -ShowSeconds $false
 # Initialize global variables
 $global:logContent = ""
 
@@ -727,7 +810,7 @@ $global:bloatwareApps = @(
 function Show-Banner {
     Clear-Host
     Write-Host "Enhanced Milestone XProtect System Configuration Script" -ForegroundColor Cyan
-    Write-Host "By Ulf Holmstrom, Happy Problem Solver at Manvarg AB (Rev 1.9, 2025)" -ForegroundColor Cyan
+    Write-Host "By Ulf Holmstrom, Happy Problem Solver at Manvarg AB (Rev 1.92, 2025)" -ForegroundColor Cyan
     Write-Host "IMPORTANT DISCLAIMER: This script has been developed privately by Ulf Holmstrom, to facilitate resellers. It is provided as a public resource and is NOT supported by Milestone Systems A/S." -ForegroundColor Magenta
     Write-Host "For questions contact: ulf@manvarg.se" -ForegroundColor Cyan
     Write-Host ""
@@ -780,7 +863,39 @@ function Invoke-AntivirusStorageConfig {
         }
     }
     
-    $exclusionExtensions = @("blk", "idx")
+    # Add Milestone installation folder exceptions on C: drive (Rev 1.92)
+    Write-Host "`n--- Adding Milestone Installation Folder Exceptions (C: drive) ---" -ForegroundColor Yellow
+    Write-Host "Following Milestone best practices - adding specific folder exceptions..." -ForegroundColor Cyan
+    
+    $milestoneFolders = @(
+        "C:\Program Files\Milestone\",
+        "C:\Program Files (x86)\Milestone\",
+        "C:\ProgramData\Milestone\",
+        "C:\ProgramData\VideoDeviceDrivers\",
+        "C:\ProgramData\VideoOS\"
+    )
+    
+    foreach ($folder in $milestoneFolders) {
+        try {
+            # Only add if folder exists (some folders may not exist on all installations)
+            if (Test-Path $folder) {
+                Add-MpPreference -ExclusionPath $folder -ErrorAction Stop
+                Write-Host "Milestone folder exception added: ${folder}" -ForegroundColor Green
+                $global:logContent += "Milestone folder exception added: ${folder}`r`n"
+            } else {
+                Write-Host "Folder not found (skipping): ${folder}" -ForegroundColor Gray
+                $global:logContent += "Folder not found: ${folder}`r`n"
+            }
+        }
+        catch {
+            Write-Host "Error adding exception for ${folder}: $_" -ForegroundColor Red
+            $global:logContent += "Error adding exception for ${folder}: $_`r`n"
+        }
+    }
+    
+    # Add file extension exceptions (updated in Rev 1.92 to include all XProtect formats)
+    Write-Host "`n--- Adding File Extension Exceptions ---" -ForegroundColor Yellow
+    $exclusionExtensions = @("blk", "idx", "pic", "pqz", "sts", "ts")
     foreach ($ext in $exclusionExtensions) {
         try {
             Add-MpPreference -ExclusionExtension $ext -ErrorAction Stop
@@ -1280,7 +1395,36 @@ function Invoke-CompleteSystemSetup {
         }
     }
     
-    $exclusionExtensions = @("blk", "idx")
+    # Add Milestone installation folder exceptions on C: drive (Rev 1.92)
+    Write-Host "`n[PHASE 1.5] Adding Milestone Installation Folder Exceptions..." -ForegroundColor Yellow
+    Write-Host "Following Milestone best practices - adding C: drive folder exceptions..." -ForegroundColor Cyan
+    
+    $milestoneFolders = @(
+        "C:\Program Files\Milestone\",
+        "C:\Program Files (x86)\Milestone\",
+        "C:\ProgramData\Milestone\",
+        "C:\ProgramData\VideoDeviceDrivers\",
+        "C:\ProgramData\VideoOS\"
+    )
+    
+    foreach ($folder in $milestoneFolders) {
+        try {
+            if (Test-Path $folder) {
+                Add-MpPreference -ExclusionPath $folder -ErrorAction Stop
+                Write-Host "[OK] Milestone folder exception: ${folder}" -ForegroundColor Green
+                $global:logContent += "COMPLETE SETUP - Milestone folder exception: ${folder}`r`n"
+            } else {
+                Write-Host "[SKIP] Folder not found: ${folder}" -ForegroundColor Gray
+            }
+        }
+        catch {
+            Write-Host "[FAIL] Error adding exception for ${folder}" -ForegroundColor Red
+        }
+    }
+    
+    # Add file extension exceptions (updated in Rev 1.92)
+    Write-Host "`nAdding file extension exceptions..." -ForegroundColor Cyan
+    $exclusionExtensions = @("blk", "idx", "pic", "pqz", "sts", "ts")
     foreach ($ext in $exclusionExtensions) {
         try {
             Add-MpPreference -ExclusionExtension $ext -ErrorAction Stop
@@ -1462,7 +1606,7 @@ function Invoke-CompleteSystemSetup {
     }
     $timestamp = (Get-Date).ToString("yyyyMMdd_HHmmss")
     $logFilePath = Join-Path $logFolderPath "CompleteSetupLog_$timestamp.txt"
-    $header = "Milestone XProtect COMPLETE SETUP Log - $(Get-Date)`r`nBy Ulf Holmstrom, Happy Problem Solver at Manvarg AB (Rev 1.9, 2025)`r`nFor questions contact: ulf@manvarg.se`r`n===========================================`r`n"
+    $header = "Milestone XProtect COMPLETE SETUP Log - $(Get-Date)`r`nBy Ulf Holmstrom, Happy Problem Solver at Manvarg AB (Rev 1.92, 2025)`r`nFor questions contact: ulf@manvarg.se`r`n===========================================`r`n"
     $fullLogContent = $header + $global:logContent
     $fullLogContent | Out-File -FilePath $logFilePath -Encoding UTF8
     Write-Host "[OK] Complete setup log saved: $logFilePath" -ForegroundColor Green
@@ -1490,7 +1634,7 @@ function Invoke-LogGeneration {
         }
         $timestamp = (Get-Date).ToString("yyyyMMdd_HHmmss")
         $logFilePath = Join-Path $logFolderPath "MilestoneXProtectConfigLog_$timestamp.txt"
-        $header = "Milestone XProtect Configuration Log - $(Get-Date)`r`nBy Ulf Holmstrom, Happy Problem Solver at Manvarg AB (Rev 1.9, 2025)`r`nFor questions contact: ulf@manvarg.se`r`n===========================================`r`n"
+        $header = "Milestone XProtect Configuration Log - $(Get-Date)`r`nBy Ulf Holmstrom, Happy Problem Solver at Manvarg AB (Rev 1.92, 2025)`r`nFor questions contact: ulf@manvarg.se`r`n===========================================`r`n"
         $fullLogContent = $header + $global:logContent
         $fullLogContent | Out-File -FilePath $logFilePath -Encoding UTF8
         Write-Host "Log file saved at: $logFilePath" -ForegroundColor Green
@@ -1514,6 +1658,16 @@ Write-Host "  - SNMP capabilities (OPTIONAL - only if you use network monitoring
 Write-Host "  - Milestone PowerShell Tools for advanced automation"
 Write-Host "  - Complete automated setup option (ALL-IN-ONE with correct order)"
 Write-Host "  - Configuration logging with registry backup"
+Write-Host ""
+Write-Host "Rev 1.92 CHANGES:" -ForegroundColor Cyan
+Write-Host "  - CRITICAL FIX: Added Milestone installation folder exceptions on C: drive" -ForegroundColor Green
+Write-Host "  - ADDED: C:\Program Files\Milestone\ antivirus exception" -ForegroundColor Green
+Write-Host "  - ADDED: C:\Program Files (x86)\Milestone\ antivirus exception" -ForegroundColor Green
+Write-Host "  - ADDED: C:\ProgramData\Milestone\ antivirus exception" -ForegroundColor Green
+Write-Host "  - ADDED: C:\ProgramData\VideoDeviceDrivers\ antivirus exception" -ForegroundColor Green
+Write-Host "  - ADDED: C:\ProgramData\VideoOS\ antivirus exception" -ForegroundColor Green
+Write-Host "  - ADDED: Missing file extensions (.pic, .pqz, .sts, .ts)" -ForegroundColor Green
+Write-Host "  - IMPROVED: Now follows Milestone's official best practices completely" -ForegroundColor Green
 Write-Host ""
 Write-Host "Rev 1.9 CHANGES:" -ForegroundColor Cyan
 Write-Host "  - ADDED: NTP Time Server configuration for camera time synchronization" -ForegroundColor Green
