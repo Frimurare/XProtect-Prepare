@@ -118,12 +118,35 @@ try {
     $newType = (Get-ItemProperty -Path $regPath -Name "Type" -ErrorAction SilentlyContinue).Type
     $serviceStatus = (Get-Service w32time -ErrorAction SilentlyContinue).Status
 
+    # Ensure DST (Daylight Saving Time) is enabled
+    Write-Host " - Checking Daylight Saving Time settings..." -ForegroundColor Cyan
+    $dstDisabled = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\TimeZoneInformation" -Name "DynamicDaylightTimeDisabled" -ErrorAction SilentlyContinue
+    if ($dstDisabled.DynamicDaylightTimeDisabled -eq 1) {
+        Write-Host " - WARNING: DST was DISABLED - enabling now..." -ForegroundColor Yellow
+        Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\TimeZoneInformation" -Name "DynamicDaylightTimeDisabled" -Value 0 -Type DWord
+        Write-Host " - DST re-enabled" -ForegroundColor Green
+    } else {
+        Write-Host " - DST is enabled (OK)" -ForegroundColor Green
+    }
+
+    # Re-apply timezone to force DST recalculation
+    $currentTZ = (Get-TimeZone).Id
+    Write-Host " - Re-applying timezone ($currentTZ) to force DST update..." -ForegroundColor Cyan
+    Set-TimeZone -Id $currentTZ
+
+    # Verify current time
+    $isDST = [System.TimeZoneInfo]::Local.IsDaylightSavingTime((Get-Date))
+    $utcOffset = (Get-TimeZone).GetUtcOffset((Get-Date))
+    Write-Host " - Current UTC offset: +$($utcOffset.Hours)h (DST active: $isDST)" -ForegroundColor $(if($isDST){'Green'}else{'Yellow'})
+
     Write-Host ""
     Write-Host "=== NTP RECOVERY COMPLETE ===" -ForegroundColor Green
     Write-Host "  Service: $serviceStatus" -ForegroundColor Green
     Write-Host "  NtpServer: $newPeers" -ForegroundColor Green
     Write-Host "  Type: $newType" -ForegroundColor Green
     Write-Host "  Startup: Automatic" -ForegroundColor Green
+    Write-Host "  DST: $(if($isDST){'Active (summer time)'}else{'Inactive (winter time)'})" -ForegroundColor Green
+    Write-Host "  UTC Offset: +$($utcOffset.Hours)h" -ForegroundColor Green
     Write-Host ""
     Write-Host "Verify with: w32tm /query /status" -ForegroundColor Yellow
     Write-Host ""

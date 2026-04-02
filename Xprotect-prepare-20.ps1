@@ -739,6 +739,20 @@ function Enable-NTPServer {
         & w32tm /resync /rediscover 2>&1 | Out-Null
         Start-Sleep -Seconds 2
 
+        # Ensure DST is enabled
+        Write-Host " - Checking Daylight Saving Time..." -ForegroundColor Cyan
+        $dstReg = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\TimeZoneInformation" -Name "DynamicDaylightTimeDisabled" -ErrorAction SilentlyContinue
+        if ($dstReg.DynamicDaylightTimeDisabled -eq 1) {
+            Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\TimeZoneInformation" -Name "DynamicDaylightTimeDisabled" -Value 0 -Type DWord
+            Write-Host " - DST was disabled - FIXED" -ForegroundColor Yellow
+        } else {
+            Write-Host " - DST enabled (OK)" -ForegroundColor Green
+        }
+
+        # Re-apply timezone to force DST recalculation
+        $currentTZ = (Get-TimeZone).Id
+        Set-TimeZone -Id $currentTZ
+
         # Verify configuration
         Write-Host "`n - Verifying NTP server configuration..." -ForegroundColor Cyan
         $w32tmStatus = & w32tm /query /status 2>&1
@@ -752,6 +766,9 @@ function Enable-NTPServer {
             Write-Host "[WARN] Windows Time service status: $($timeService.Status)" -ForegroundColor Yellow
         }
 
+        $isDST = [System.TimeZoneInfo]::Local.IsDaylightSavingTime((Get-Date))
+        $utcOffset = (Get-TimeZone).GetUtcOffset((Get-Date))
+
         # Display configuration summary
         Write-Host "`n=== NTP SERVER CONFIGURATION SUMMARY ===" -ForegroundColor Green
         Write-Host "NTP Server Status: ENABLED" -ForegroundColor Green
@@ -762,6 +779,7 @@ function Enable-NTPServer {
         Write-Host "Firewall: UDP Port 123 opened for incoming connections" -ForegroundColor Green
         Write-Host "Server Mode: Reliable NTP server for camera synchronization" -ForegroundColor Green
         Write-Host "Taskbar Clock: Seconds display ENABLED" -ForegroundColor Green
+        Write-Host "DST: $(if($isDST){'Active (summer time)'}else{'Inactive (winter time)'}) UTC+$($utcOffset.Hours)" -ForegroundColor Green
         Write-Host ""
         Write-Host "Your cameras can now sync time from this server!" -ForegroundColor Green
         Write-Host "Configure your cameras to use this server's IP address as NTP server." -ForegroundColor Cyan
@@ -860,15 +878,33 @@ function Invoke-NTPRecovery {
         & w32tm /resync /rediscover 2>&1 | Out-Null
         Start-Sleep -Seconds 2
 
+        # Ensure DST is enabled
+        Write-Host " - Checking Daylight Saving Time..." -ForegroundColor Cyan
+        $dstReg = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\TimeZoneInformation" -Name "DynamicDaylightTimeDisabled" -ErrorAction SilentlyContinue
+        if ($dstReg.DynamicDaylightTimeDisabled -eq 1) {
+            Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\TimeZoneInformation" -Name "DynamicDaylightTimeDisabled" -Value 0 -Type DWord
+            Write-Host " - DST was disabled - FIXED" -ForegroundColor Yellow
+        } else {
+            Write-Host " - DST enabled (OK)" -ForegroundColor Green
+        }
+
+        # Re-apply timezone to force DST recalculation
+        $currentTZ = (Get-TimeZone).Id
+        Set-TimeZone -Id $currentTZ
+
         # Verify
         $timeService = Get-Service w32time -ErrorAction SilentlyContinue
         $newPeers = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Parameters" -Name "NtpServer" -ErrorAction SilentlyContinue).NtpServer
+        $isDST = [System.TimeZoneInfo]::Local.IsDaylightSavingTime((Get-Date))
+        $utcOffset = (Get-TimeZone).GetUtcOffset((Get-Date))
 
         Write-Host "`n=== NTP RECOVERY COMPLETE ===" -ForegroundColor Green
         Write-Host "Service Status: $($timeService.Status)" -ForegroundColor Green
         Write-Host "NTP Peers: $newPeers" -ForegroundColor Green
         Write-Host "Sync Mode: $(if($isDomain){'AllSync'}else{'NTP'})" -ForegroundColor Green
         Write-Host "Startup: Automatic" -ForegroundColor Green
+        Write-Host "DST: $(if($isDST){'Active (summer time)'}else{'Inactive (winter time)'})" -ForegroundColor Green
+        Write-Host "UTC Offset: +$($utcOffset.Hours)h" -ForegroundColor Green
         Write-Host ""
 
         return $true
