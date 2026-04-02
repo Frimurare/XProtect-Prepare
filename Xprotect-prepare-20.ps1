@@ -941,8 +941,13 @@ function Install-SSHServer {
         Write-Host " - Enabling password authentication..." -ForegroundColor Cyan
         $configPath = "$env:ProgramData\ssh\sshd_config"
         if (Test-Path $configPath) {
-            (Get-Content $configPath) -replace '#PasswordAuthentication yes','PasswordAuthentication yes' -replace 'PasswordAuthentication no','PasswordAuthentication yes' | Set-Content $configPath
-            Write-Host " - Password authentication enabled" -ForegroundColor Green
+            $config = Get-Content $configPath
+            $config = $config -replace '#PasswordAuthentication yes','PasswordAuthentication yes' -replace 'PasswordAuthentication no','PasswordAuthentication yes'
+            # Fix: Allow password auth for admin users (Windows blocks it by default via Match Group)
+            $config = $config -replace '^Match Group administrators','#Match Group administrators'
+            $config = $config -replace '^\s+AuthorizedKeysFile __PROGRAMDATA__','#       AuthorizedKeysFile __PROGRAMDATA__'
+            $config | Set-Content $configPath
+            Write-Host " - Password authentication enabled (including admin accounts)" -ForegroundColor Green
         } else {
             Write-Host " - Warning: sshd_config not found at $configPath" -ForegroundColor Yellow
         }
