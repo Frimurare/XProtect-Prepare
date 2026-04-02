@@ -659,7 +659,9 @@ function Enable-NTPServer {
         Write-Host " - Configuring time synchronization settings..." -ForegroundColor Cyan
 
         # Set this server as a reliable time source
-        Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Config" -Name "AnnounceFlags" -Value 5 -Type DWord -ErrorAction Stop
+        # AnnounceFlags=10 (0x0A): Act as NTP server for cameras but ALSO sync from external sources
+        # Value 5 made the server think it IS the primary source and refuse to sync upstream
+        Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Config" -Name "AnnounceFlags" -Value 10 -Type DWord -ErrorAction Stop
 
         # Enable NTP Server
         Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\TimeProviders\NtpServer" -Name "Enabled" -Value 1 -Type DWord -ErrorAction Stop
