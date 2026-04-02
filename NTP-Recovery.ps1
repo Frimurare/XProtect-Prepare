@@ -101,9 +101,11 @@ try {
 
     # Apply via w32tm
     Write-Host " - Applying w32tm configuration..." -ForegroundColor Cyan
-    # Fix AnnounceFlags: 10 = serve time to cameras BUT also sync from external NTP
-    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Config" -Name "AnnounceFlags" -Value 10 -Type DWord -ErrorAction SilentlyContinue
     & w32tm /config /manualpeerlist:$ntpServers /syncfromflags:$syncFlags /reliable:yes /update 2>&1 | Out-Null
+
+    # Fix AnnounceFlags AFTER w32tm (reliable:yes resets it to 5)
+    Write-Host " - Setting AnnounceFlags to 10 (server + client)..." -ForegroundColor Cyan
+    Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Config" -Name "AnnounceFlags" -Value 10 -Type DWord -ErrorAction SilentlyContinue
 
     # Start service
     Write-Host " - Starting Windows Time service..." -ForegroundColor Cyan

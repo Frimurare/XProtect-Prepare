@@ -690,6 +690,9 @@ function Enable-NTPServer {
         Write-Host " - Applying w32tm configuration..." -ForegroundColor Cyan
         & w32tm /config /manualpeerlist:$ntpServers /syncfromflags:$syncFlags /reliable:yes /update 2>&1 | Out-Null
 
+        # Re-apply AnnounceFlags=10 AFTER w32tm (reliable:yes resets it to 5)
+        Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Config" -Name "AnnounceFlags" -Value 10 -Type DWord -ErrorAction Stop
+
         # Configure firewall rule for NTP (UDP 123)
         Write-Host " - Opening firewall for NTP (UDP port 123)..." -ForegroundColor Cyan
 
@@ -866,9 +869,16 @@ function Invoke-NTPRecovery {
         Write-Host " - Setting w32time startup to Automatic..." -ForegroundColor Cyan
         Set-Service w32time -StartupType Automatic
 
+        # Set AnnounceFlags=10 (serve time to cameras AND sync from external)
+        Write-Host " - Setting AnnounceFlags to 10 (server + client)..." -ForegroundColor Cyan
+        Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Config" -Name "AnnounceFlags" -Value 10 -Type DWord -ErrorAction SilentlyContinue
+
         # Apply via w32tm
         Write-Host " - Applying w32tm configuration..." -ForegroundColor Cyan
         & w32tm /config /manualpeerlist:$ntpServers /syncfromflags:$syncFlags /reliable:yes /update 2>&1 | Out-Null
+
+        # Re-apply AnnounceFlags (w32tm /reliable:yes resets it to 5)
+        Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Config" -Name "AnnounceFlags" -Value 10 -Type DWord -ErrorAction SilentlyContinue
 
         # Start service
         Write-Host " - Starting Windows Time service..." -ForegroundColor Cyan
