@@ -152,6 +152,26 @@ try {
     Write-Host ""
     Write-Host "Verify with: w32tm /query /status" -ForegroundColor Yellow
     Write-Host ""
+    Write-Host "========================================================" -ForegroundColor Red
+    Write-Host "  IMPORTANT: A REBOOT IS REQUIRED!" -ForegroundColor Red
+    Write-Host "========================================================" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "  The Windows Time service caches its internal state." -ForegroundColor Yellow
+    Write-Host "  Without a reboot, it may continue using the old" -ForegroundColor Yellow
+    Write-Host "  (broken) configuration and refuse to sync." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  Please reboot this machine as soon as possible." -ForegroundColor Yellow
+    Write-Host "  After reboot, verify with: w32tm /query /source" -ForegroundColor Yellow
+    Write-Host "  It should show a .se.pool.ntp.org address." -ForegroundColor Yellow
+    Write-Host ""
+    $rebootNow = Read-Host "  Reboot now? (Y/N)"
+    if ($rebootNow -eq 'Y' -or $rebootNow -eq 'y') {
+        Write-Host "  Rebooting in 30 seconds..." -ForegroundColor Cyan
+        shutdown /r /t 30 /c "NTP Recovery - reboot required for time sync fix"
+    } else {
+        Write-Host "  Remember to reboot this machine!" -ForegroundColor Red
+    }
+    Write-Host ""
 
 } catch {
     Write-Host ""
