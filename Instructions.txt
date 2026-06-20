@@ -1,5 +1,24 @@
 ==========================================================
-Enhanced Milestone XProtect Configuration Script v2.0 - User Guide
+Enhanced Milestone XProtect Configuration Script v2.1 "Swedish Summer Edition" - User Guide
+==========================================================
+
+==========================================================
+* WHAT'S NEW IN v2.1 "Swedish Summer Edition"
+==========================================================
+
+- Full support for Milestone XProtect 2026 R1 (and still works on older versions).
+- Antivirus exclusions now cover VictoriaLogs (the new 2026 R1 log engine) AND the
+  legacy Log Server, so the same tool is correct on any Milestone version.
+- The XProtect Smart Client now gets its own antivirus exclusions automatically
+  (only when it is installed) - this fixes the very slow first launch you may have
+  seen after (re)installing the Smart Client.
+- MilestonePSTools is now installed via the official web installer (required for 2026 R1).
+- NEW: silent / unattended mode for golden images and automation:
+      XProtect-Prepare-2.1.exe -Silent
+      XProtect-Prepare-2.1.exe -Silent -WithSSH -Drives "D,E"
+- The compiled, branded executable is XProtect-Prepare-2.1.exe (run as administrator).
+  Prefer the .ps1 if you want to read every line first - both do the same thing.
+
 ==========================================================
 
 ## HOW TO RUN THIS SCRIPT (Quick Start)
@@ -28,7 +47,7 @@ Enhanced Milestone XProtect Configuration Script v2.0 - User Guide
 
 ==========================================================
 
-## Hello there, and welcome to the Enhanced Milestone XProtect Configuration Script v2.0!
+## Hello there, and welcome to the Enhanced Milestone XProtect Configuration Script v2.1!
 
 This comprehensive tool was created by me, Ulf Holmstrom, Happy Problem Solver at Manvarg AB (Ex Solution Engineer at Milestone Systems) in Sweden. I built this script to make deploying and optimizing Milestone XProtect systems as smooth as possible. After years of watching technicians spend hours on repetitive configuration tasks, I thought, "There's got to be a better way!" So here we are - your new best friend for XProtect deployments.
 
@@ -79,7 +98,7 @@ Think of this script as your personal XProtect configuration assistant that hand
 
 13. **Comprehensive Logging:** Detailed logs with timestamps, plus automatic registry backups before any changes.
 
-## The v2.0 Menu
+## The v2.1 Menu
 
 The new streamlined menu gives you clear options:
 
@@ -148,7 +167,7 @@ The script automatically detects whether you're running Windows 11, Windows Serv
 
 ## What's in the ZIP?
 
-The v2.0 package includes:
+The v2.1 package includes:
 - **The main script (.ps1)** - the full configuration toolkit
 - **launch.bat** - easy launcher with admin elevation
 - **NTP-Recovery.ps1** - standalone NTP fix script for deployed machines
@@ -286,7 +305,7 @@ Questions? Suggestions? Found a bug? I'd love to hear from you! Reach out to me 
 
 This tool is provided as a free resource to make everyone's life easier. Use it, share it with colleagues, and may all your XProtect deployments be smooth and trouble-free!
 
-Thanks for using the Enhanced Milestone XProtect Configuration Script v2.0!
+Thanks for using the Enhanced Milestone XProtect Configuration Script v2.1!
 
 Have a fantastic day, and happy deploying!
 

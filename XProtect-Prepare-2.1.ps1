@@ -1,11 +1,23 @@
 <#
    Enhanced Script for Milestone XProtect System Configuration
-   By Ulf Holmstrom, Happy Problem Solver at Manvarg AB (Rev 2.0, 2026)
+   By Ulf Holmstrom, Happy Problem Solver at Manvarg AB (Rev 2.1 "Swedish Summer Edition", 2026)
    For questions contact: ulf@manvarg.se
 
    IMPORTANT DISCLAIMER:
    This script has been developed by Ulf Holmstrom, Happy Problem Solver at Manvarg AB, to facilitate resellers.
    It is provided as a public resource and is NOT supported by Milestone Systems.
+
+   CHANGELOG Rev 2.1 "Swedish Summer Edition":
+   - NEW: Full support for Milestone XProtect 2026 R1 (works alongside earlier releases)
+   - NEW: VictoriaLogs antivirus process exclusions (2026 R1 replaced the SQL Log Server)
+   - NEW: XProtect Smart Client antivirus exclusions (Client.exe + per-user cache),
+          conditional on Smart Client being installed - fixes slow first-launch after (re)install
+   - NEW: VictoriaLogs / legacy Log Server auto-detection (informational message)
+   - CHANGED: MilestonePSTools now installed via the official one-line web installer
+              (milestonepstools.com/install.ps1) - required for 2026 R1 compatibility
+   - NEW: -Silent unattended mode (runs Complete Setup without prompts; -WithSSH, -Drives)
+   - COMPATIBILITY: legacy Log Server process exclusion kept, so AV config is correct on
+                    both 2026 R1 and earlier Milestone versions
 
    CHANGELOG Rev 2.0:
    - NEW: Menu restructured with Complete Setup (with/without SSH)
@@ -41,6 +53,27 @@
    - IMPROVED: Cameras can now sync accurate time from this server
    - FORENSIC: Ensures legally valid timestamps on all recordings
 #>
+
+param(
+    [switch]$Silent,
+    [switch]$WithSSH,
+    [string]$Drives = ""
+)
+
+# --- Silent / unattended mode support (Rev 2.1) ---
+# When -Silent is supplied the script runs Complete Setup with no interactive prompts.
+# We shadow Read-Host so any prompt returns a safe automatic answer.
+$global:Silent        = $Silent.IsPresent
+$global:SilentDrives  = $Drives
+$global:SilentWithSSH = $WithSSH.IsPresent
+if ($global:Silent) {
+    function Read-Host {
+        param([Parameter(ValueFromRemainingArguments = $true)] $Prompt)
+        $p = "$Prompt"
+        if ($p -match 'drive|letter') { return $global:SilentDrives }
+        return 'Y'
+    }
+}
 
 # Check for Administrator privileges
 function Test-Administrator {
@@ -589,38 +622,105 @@ function Install-MilestonePSTools {
             return $true
         }
 
-        Write-Host " - Installing Milestone PowerShell Tools from PowerShell Gallery..." -ForegroundColor Cyan
-
-        $nugetProvider = Get-PackageProvider -Name "NuGet" -ErrorAction SilentlyContinue
-        if (-not $nugetProvider) {
-            Write-Host " - Installing NuGet package provider..." -ForegroundColor Yellow
-            Install-PackageProvider -Name "NuGet" -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser
-        }
-
-        $originalPolicy = Get-PSRepository -Name "PSGallery" | Select-Object -ExpandProperty InstallationPolicy
-        Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
+        Write-Host " - Installing Milestone PowerShell Tools (official web installer)..." -ForegroundColor Cyan
+        Write-Host "   NOTE: requires internet access (milestonepstools.com + PowerShell Gallery)" -ForegroundColor Yellow
 
         try {
-            Write-Host " - Downloading and installing MilestonePSTools module..." -ForegroundColor Yellow
-            Install-Module -Name "MilestonePSTools" -Scope CurrentUser -Force -AllowClobber
+            # 2026 R1 compatibility: the official one-line web installer always pulls a
+            # MilestonePSTools build new enough for 2026 R1. The old Install-Module path
+            # could leave an older module that fails to connect to a 2026 R1 server.
+            Set-ExecutionPolicy RemoteSigned -Scope Process -Force -ErrorAction SilentlyContinue
+            [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+            Invoke-Expression (Invoke-RestMethod 'https://www.milestonepstools.com/install.ps1')
 
-            $installedModule = Get-Module -ListAvailable -Name "MilestonePSTools" -ErrorAction SilentlyContinue
+            $installedModule = Get-Module -ListAvailable -Name "MilestonePSTools" -ErrorAction SilentlyContinue |
+                Sort-Object Version -Descending | Select-Object -First 1
             if ($installedModule) {
                 Write-Host " - Milestone PowerShell Tools successfully installed!" -ForegroundColor Green
                 Write-Host " - Version: $($installedModule.Version)" -ForegroundColor Green
                 return $true
             } else {
-                Write-Host " - Installation verification failed" -ForegroundColor Red
+                Write-Host " - Installation verification failed (no internet, or installer blocked?)" -ForegroundColor Red
                 return $false
             }
         }
-        finally {
-            Set-PSRepository -Name "PSGallery" -InstallationPolicy $originalPolicy
+        catch {
+            Write-Host " - Web installer failed: $($_.Exception.Message)" -ForegroundColor Red
+            return $false
         }
 
     } catch {
         Write-Host " - Error installing Milestone PowerShell Tools: $($_.Exception.Message)" -ForegroundColor Red
         return $false
+    }
+}
+
+# Function: Extended AV exclusions for 2026 R1 (VictoriaLogs) + Smart Client (Rev 2.1)
+# Covers BOTH 2026 R1 (VictoriaLogs) and earlier Milestone versions (legacy Log Server).
+# Smart Client exclusions are only added when the client is actually installed.
+function Add-MilestoneClientAndLogExclusions {
+
+    # --- Log engine detection: VictoriaLogs (2026 R1+) vs legacy SQL Log Server ---
+    $victoriaPath = "C:\Program Files\Milestone\VictoriaLogs"
+    if (Test-Path $victoriaPath) {
+        Write-Host "[INFO] VictoriaLogs detected - Milestone 2026 R1 or later" -ForegroundColor Cyan
+        $global:logContent += "Log engine: VictoriaLogs detected (2026 R1+)`r`n"
+    } else {
+        Write-Host "[INFO] VictoriaLogs not found - assuming legacy Log Server (pre-2026 R1)" -ForegroundColor Cyan
+        $global:logContent += "Log engine: legacy Log Server assumed (pre-2026 R1)`r`n"
+    }
+
+    # Process exclusions covering both new (VictoriaLogs) and old (legacy Log Server) engines.
+    # Adding a process exclusion for a process that does not exist is harmless.
+    $extraProcesses = @(
+        "victoria-logs-windows-amd64-prod.exe",   # VictoriaLogs engine (2026 R1+)
+        "VideoOS.ServiceWrapper.exe",             # VictoriaLogs service wrapper (2026 R1+)
+        "VideoOS.LogServer.exe"                   # legacy SQL Log Server (pre-2026 R1)
+    )
+    foreach ($proc in $extraProcesses) {
+        try {
+            Add-MpPreference -ExclusionProcess $proc -ErrorAction Stop
+            Write-Host "[OK] Antivirus exception added for process: ${proc}" -ForegroundColor Green
+            $global:logContent += "Antivirus exception added for process: ${proc}`r`n"
+        }
+        catch {
+            Write-Host "[FAIL] Error adding process exception ${proc}: $_" -ForegroundColor Red
+        }
+    }
+
+    # --- XProtect Smart Client (viewing client): only exclude if installed ---
+    $smartClientExe = "C:\Program Files\Milestone\XProtect Smart Client\Client.exe"
+    if (Test-Path $smartClientExe) {
+        Write-Host "[INFO] XProtect Smart Client detected - adding client exclusions" -ForegroundColor Cyan
+        $global:logContent += "Smart Client detected - adding client AV exclusions`r`n"
+        try {
+            Add-MpPreference -ExclusionProcess "Client.exe" -ErrorAction Stop
+            Add-MpPreference -ExclusionProcess $smartClientExe -ErrorAction Stop
+            Write-Host "[OK] Antivirus exception added for process: Client.exe (Smart Client)" -ForegroundColor Green
+            $global:logContent += "Antivirus exception added for process: Client.exe (Smart Client)`r`n"
+        }
+        catch {
+            Write-Host "[FAIL] Error adding Smart Client process exception: $_" -ForegroundColor Red
+        }
+        # Smart Client per-user cache - NOT covered by the Program Files / ProgramData Milestone folders
+        $smartClientPaths = @(
+            "C:\Program Files\Milestone\XProtect Smart Client",
+            "C:\Users\*\AppData\Local\VideoOS",
+            "C:\Users\*\AppData\Roaming\VideoOS"
+        )
+        foreach ($scPath in $smartClientPaths) {
+            try {
+                Add-MpPreference -ExclusionPath $scPath -ErrorAction Stop
+                Write-Host "[OK] Smart Client path exception: ${scPath}" -ForegroundColor Green
+                $global:logContent += "Smart Client path exception: ${scPath}`r`n"
+            }
+            catch {
+                Write-Host "[FAIL] Error adding Smart Client path ${scPath}: $_" -ForegroundColor Red
+            }
+        }
+    } else {
+        Write-Host "[INFO] XProtect Smart Client not installed - skipping client exclusions" -ForegroundColor Gray
+        $global:logContent += "Smart Client not installed - client exclusions skipped`r`n"
     }
 }
 
@@ -1140,7 +1240,7 @@ $global:bloatwareApps = @(
 # Function: Display Banner
 function Show-Banner {
     Clear-Host
-    Write-Host "=== XProtect-Prepare v2.0 ===" -ForegroundColor Cyan
+    Write-Host "=== XProtect-Prepare v2.1 ===" -ForegroundColor Cyan
     Write-Host "By Ulf Holmstrom, Happy Problem Solver at Manvarg AB (2026)" -ForegroundColor Cyan
     Write-Host "DISCLAIMER: Developed privately to facilitate resellers. NOT supported by Milestone Systems A/S." -ForegroundColor Magenta
     Write-Host "For questions contact: ulf@manvarg.se" -ForegroundColor Cyan
@@ -1275,6 +1375,9 @@ function Invoke-AntivirusStorageConfig {
             $global:logContent += "Error adding antivirus exception for process ${proc}: $_`r`n"
         }
     }
+
+    # Rev 2.1: VictoriaLogs (2026 R1) + Smart Client exclusions
+    Add-MilestoneClientAndLogExclusions
 
     Write-Host "`n--- Storage Drive Configuration Check (Storage Drives Only) ---" -ForegroundColor Yellow
     foreach ($drive in $selectedDrives) {
@@ -1846,6 +1949,9 @@ function Invoke-CompleteSystemSetup {
         }
     }
 
+    # Rev 2.1: VictoriaLogs (2026 R1) + Smart Client exclusions
+    Add-MilestoneClientAndLogExclusions
+
     # Storage drive optimization
     $storageDrives = $selectedDrives | Where-Object { $_ -ne "C:" }
     if ($storageDrives -and $storageDrives.Count -gt 0) {
@@ -1929,7 +2035,7 @@ function Invoke-CompleteSystemSetup {
     }
     $timestamp = (Get-Date).ToString("yyyyMMdd_HHmmss")
     $logFilePath = Join-Path $logFolderPath "CompleteSetupLog_v2_$timestamp.txt"
-    $header = "Milestone XProtect COMPLETE SETUP Log - $(Get-Date)`r`nXProtect-Prepare v2.0`r`nBy Ulf Holmstrom, Happy Problem Solver at Manvarg AB (2026)`r`nFor questions contact: ulf@manvarg.se`r`n===========================================`r`n"
+    $header = "Milestone XProtect COMPLETE SETUP Log - $(Get-Date)`r`nXProtect-Prepare v2.1`r`nBy Ulf Holmstrom, Happy Problem Solver at Manvarg AB (2026)`r`nFor questions contact: ulf@manvarg.se`r`n===========================================`r`n"
     $fullLogContent = $header + $global:logContent
     $fullLogContent | Out-File -FilePath $logFilePath -Encoding UTF8
     Write-Host "[OK] Complete setup log saved: $logFilePath" -ForegroundColor Green
@@ -1957,7 +2063,7 @@ function Invoke-LogGeneration {
         }
         $timestamp = (Get-Date).ToString("yyyyMMdd_HHmmss")
         $logFilePath = Join-Path $logFolderPath "MilestoneXProtectConfigLog_$timestamp.txt"
-        $header = "Milestone XProtect Configuration Log - $(Get-Date)`r`nXProtect-Prepare v2.0`r`nBy Ulf Holmstrom, Happy Problem Solver at Manvarg AB (2026)`r`nFor questions contact: ulf@manvarg.se`r`n===========================================`r`n"
+        $header = "Milestone XProtect Configuration Log - $(Get-Date)`r`nXProtect-Prepare v2.1`r`nBy Ulf Holmstrom, Happy Problem Solver at Manvarg AB (2026)`r`nFor questions contact: ulf@manvarg.se`r`n===========================================`r`n"
         $fullLogContent = $header + $global:logContent
         $fullLogContent | Out-File -FilePath $logFilePath -Encoding UTF8
         Write-Host "Log file saved at: $logFilePath" -ForegroundColor Green
@@ -1969,9 +2075,21 @@ function Invoke-LogGeneration {
     Read-Host "Press Enter to return to menu..."
 }
 
+# --- Silent / unattended execution (Rev 2.1) ---
+if ($global:Silent) {
+    Show-Banner
+    Write-Host "XProtect-Prepare v2.1 - SILENT MODE (unattended Complete Setup)" -ForegroundColor Yellow
+    $sshState = if ($global:SilentWithSSH) { 'INCLUDED' } else { 'not included' }
+    $drvState = if ($global:SilentDrives) { $global:SilentDrives } else { '(none - Milestone folders only)' }
+    Write-Host ("SSH: {0}  |  Storage drives for AV: {1}" -f $sshState, $drvState) -ForegroundColor Cyan
+    Invoke-CompleteSystemSetup -IncludeSSH:$global:SilentWithSSH
+    Write-Host "`n[SILENT MODE COMPLETE] XProtect-Prepare v2.1 finished." -ForegroundColor Green
+    exit 0
+}
+
 # Main Script Execution
 Show-Banner
-Write-Host "XProtect-Prepare v2.0 - Complete system preparation for Milestone XProtect"
+Write-Host "XProtect-Prepare v2.1 - Complete system preparation for Milestone XProtect"
 Write-Host ""
 Write-Host "This script will help you configure:" -ForegroundColor Cyan
 Write-Host "  - Antivirus exceptions and storage drive optimization"
@@ -1982,14 +2100,13 @@ Write-Host "  - NTP Time Server for camera synchronization (FIXED in v2.0)"
 Write-Host "  - SSH Server installation and configuration"
 Write-Host "  - Windows Update management (standalone toggle)"
 Write-Host ""
-Write-Host "v2.0 HIGHLIGHTS:" -ForegroundColor Cyan
-Write-Host "  - CRITICAL FIX: NTP peer format corrected (,0x9 flags)" -ForegroundColor Green
-Write-Host "  - NEW: NTP Recovery for machines with v1.9x bug" -ForegroundColor Green
-Write-Host "  - NEW: SSH Server install option" -ForegroundColor Green
-Write-Host "  - NEW: Copilot, Recall, Telemetry disabled" -ForegroundColor Green
-Write-Host "  - NEW: 25H2 bloatware (Clipchamp, TikTok, Copilot, etc.)" -ForegroundColor Green
-Write-Host "  - NEW: LargeSystemCache optimization" -ForegroundColor Green
-Write-Host "  - IMPROVED: Windows Update moved out of Complete Setup" -ForegroundColor Green
+Write-Host "v2.1 'Swedish Summer Edition' HIGHLIGHTS:" -ForegroundColor Cyan
+Write-Host "  - NEW: Milestone 2026 R1 support (VictoriaLogs AV exclusions)" -ForegroundColor Green
+Write-Host "  - NEW: XProtect Smart Client AV exclusions (faster client start)" -ForegroundColor Green
+Write-Host "  - NEW: MilestonePSTools via official web installer (2026 R1 ready)" -ForegroundColor Green
+Write-Host "  - NEW: -Silent unattended mode for deployment automation" -ForegroundColor Green
+Write-Host "  - Works on BOTH 2026 R1 and earlier Milestone versions" -ForegroundColor Green
+Write-Host "  - Plus all of v2.0: NTP fix, SSH, Copilot/Recall off, 25H2 cleanup" -ForegroundColor Green
 Write-Host ""
 Read-Host "Press Enter to continue..."
 
@@ -2065,7 +2182,7 @@ do {
             Read-Host "`nPress Enter to return to main menu..."
         }
         "8" {
-            Write-Host "Exiting script. Thank you for using XProtect-Prepare v2.0!" -ForegroundColor Green
+            Write-Host "Exiting script. Thank you for using XProtect-Prepare v2.1!" -ForegroundColor Green
             Write-Host "For questions or feedback, contact: ulf@manvarg.se" -ForegroundColor Cyan
             break
         }
