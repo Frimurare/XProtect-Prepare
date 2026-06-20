@@ -146,6 +146,10 @@ Without the flags, Windows Time Service cannot parse the peer list and time sync
 
 This tool makes significant system changes (services, registry, power, app removal). Test it before using it in production, and review the menu prompts. It is provided **as-is**, with no warranty, and is **not** affiliated with or supported by Milestone Systems A/S.
 
+## License
+
+Released under the **MIT License** — free to use, modify, and distribute, including commercially. The only condition is that you **keep the copyright notice and credit the original author** (Ulf Holmström / Manvarg AB). See [`LICENSE`](LICENSE) for the full text.
+
 ## Author
 
 **Ulf Holmström** — Happy Problem Solver at **Manvarg AB**
